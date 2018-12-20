@@ -1,7 +1,11 @@
+# frozen_string_literal: true
+
 module Doure
   class Filter
     class_attribute :mapping
     self.mapping = ActiveSupport::HashWithIndifferentAccess.new
+    VALID_CASTINGS = %i(boolean date datetime)
+    InvalidCasting = Class.new(StandardError)
 
     class << self
       def inherited(subclass)
@@ -47,8 +51,7 @@ module Doure
     def apply(params = {})
       params.each do |key, value|
         if !value.nil? && value != "" && mapping.key?(key)
-          casted_value = mapping[key][0].key?(:as) ? cast_value(mapping[key][0][:as], value) : value
-          @scope = mapping[key][1].call(@scope, casted_value)
+          @scope = instance_exec(@scope, cast_value(mapping[key][0], value), &mapping[key][1])
         end
       end
 
@@ -57,8 +60,10 @@ module Doure
 
     private
 
-    def cast_value(type, value)
-      case type
+    def cast_value(opts, value)
+      raise InvalidCasting, "Invalid casting type #{opts[:as]}" if opts[:as] && !VALID_CASTINGS.include?(opts[:as])
+
+      case opts[:as]
         when :boolean
           ActiveRecord::Type::Boolean.new.cast(value)
         when :date

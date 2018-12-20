@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "doure/version"
 
 require 'doure/filter'
