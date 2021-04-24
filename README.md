@@ -1,16 +1,23 @@
 # Doure
 
-Doure is a minimal abstraction to write parameterized filters for ActiveRecord models. It allows you to write named filters that accept one parameter, and use those later with `filter`, ex:
+Doure is a minimal abstraction to write parameterized filters for ActiveRecord models. It allows you to write named filters that accept one parameter, and use those later with `doure_filter`, ex:
 
 ```ruby
+class Post < ApplicationRecord
+  include Doure::Filterable
+
+  filter_class PostFilter
+end
+
 class PostFilter < Doure::Filter
   cont_filter(:title)
   filter(:author_role_in) { |s, v| s.joins(:author).where(authors: { role: v }) }
 end
 
-Post.filter(title_cont: "Dev", author_role_in: ["editor", "admin"])
+Post.doure_filter(title_cont: "Dev", author_role_in: ["editor", "admin"])
 ```
 
+This allows for a simple implementation of search features in a controller, by passing the "search" parameters (like a `q` parameter) directly to `#doure_filter`.
 
 ## Installation
 
@@ -36,7 +43,7 @@ Given you have an ActiveRecord model, you need to extend the filterable module a
 # app/models/post.rb
 
 class Post < ApplicationRecord
-  extend Doure::Filterable
+  include Doure::Filterable
   
   filter_class PostFilter
 end
@@ -64,7 +71,7 @@ You can also use the additional argument `:as` to `filter` (or any of the other 
 ```ruby
 class PostFilter < Doure::Filter
   filter(:is_visible, as: :boolean) { |s, v|
-    # 'v' is a boolean here even if used as `Post.filter(is_visible: 'true')` 
+    # 'v' is a boolean here even if used as `Post.doure_filter(is_visible: 'true')` 
     s.where(active: v) 
   }
 end
@@ -100,26 +107,26 @@ end
 
 Some of the most commonly used filters are already provided. The name of the resulting filter is always <filter_name>_<prefix>, for example "title_cont" for a filter like "cont_filter(:title)". In particular the provided filters are:
 
-- `cont_filter(name)`: Implements `ILIKE '%#{value}%'`. Ex: `Post.filter(title_cont: 'dev')`
-- `eq_filter(name)`: Implements equality. Ex: `Post.filter(id_eq: 12)`
-- `not_eq_filter(name)`: Non-equality. Ex: `Post.filter(id_not_eq: 12)`
-- `present_filter(name)`: This is a boolean filter by default. Implements equality / non-equality against NULL. Ex: `Post.filter(slug_present: false)`
--  Numerical comparators, `gt_filter, lt_filter, gteq_filter, lteq_filter`: Implements numerical comparators, the passed value is left as-is. Ex: `Post.filter(views_count_gt: 10)` 
+- `cont_filter(name)`: Implements `ILIKE '%#{value}%'`. Ex: `Post.doure_filter(title_cont: 'dev')`
+- `eq_filter(name)`: Implements equality. Ex: `Post.doure_filter(id_eq: 12)`
+- `not_eq_filter(name)`: Non-equality. Ex: `Post.doure_filter(id_not_eq: 12)`
+- `present_filter(name)`: This is a boolean filter by default. Implements equality / non-equality against NULL. Ex: `Post.doure_filter(slug_present: false)`
+-  Numerical comparators, `gt_filter, lt_filter, gteq_filter, lteq_filter`: Implements numerical comparators, the passed value is left as-is. Ex: `Post.doure_filter(views_count_gt: 10)` 
 
 
 ### Using Model#filter
 
 The `#filter` method is chainable with other scopes, for example:
 
-`Post.where(category_id: 12).filter(title_cont: "Dev")`
+`Post.where(category_id: 12).doure_filter(title_cont: "Dev")`
 
 Or with named scopes you have declared in the model:
 
-`Post.not_deleted.visible.filter(title_cont: "Dev", category_id_eq: '88')`
+`Post.not_deleted.visible.doure_filter(title_cont: "Dev", category_id_eq: '88')`
 
 The expected use case for Doure is to implement search features. Since it's a common scenario to use `Model#filter` passing a hash of values coming from a view form, the hash will usually have most of their keys with nil values or empty strings. In order to not give incorrect results, then, `nil` and the empty string (`""`) values are ignored by default. For example:
 
-`Post.filter(title_cont: "", is_visible: "f")`
+`Post.doure_filter(title_cont: "", is_visible: "f")`
 
 Will only apply the `is_visible` filter but not the `title_cont`.  
 
